@@ -60,12 +60,17 @@ def edge_feature(img, th, nbPointCurv):
 
     return magnitude, angle, curvature
 
-# compute flow feature -> variability, velocity and direction
-def flow_feature(refImg, curImg, tau):
+# compute flow feature -> variability and velocity
+def flow_feature(refImg, curImg, tau, th):
     variability = cv2.absdiff(cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY), cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY))
+    # remove noise using a binary mask
+    ret, varMask = cv2.threshold(variability, th, 255, cv2.THRESH_BINARY)
+    varMask = varMask.astype(np.uint8)
+    variability = cv2.bitwise_and(variability, variability, mask=varMask)
+    variability = cv2.normalize(variability,  None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    # compute velocity given the time constant
     velocity = variability/tau
-    direction = 
-    return variability, velocity, direction
+    return variability, velocity
 
 refImg = cv2.imread('ref.png')
 refImg = cv2.resize(refImg, (640, 480))
@@ -75,7 +80,7 @@ curImg = cv2.resize(curImg, (640, 480))
 # compute feature
 hue, saturation, intensity = color_feature(img=curImg)
 magnitude, angle, curvature = edge_feature(img=curImg, th=50, nbPointCurv=5)
-variability, velocity, direction = flow_feature(refImg=refImg, curImg=curImg, tau=0.1)
+variability, velocity = flow_feature(refImg=refImg, curImg=curImg, tau=0.1, th=10)
 
 plt.imshow(hue)
 plt.show()
@@ -94,6 +99,4 @@ plt.show()
 plt.imshow(variability)
 plt.show()
 plt.imshow(velocity)
-plt.show()
-plt.imshow(direction)
 plt.show()
