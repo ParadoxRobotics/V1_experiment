@@ -60,32 +60,29 @@ def edge_feature(img, th, nbPointCurv):
 
     return magnitude, angle, curvature
 
+# compute flow feature -> variability, velocity and drection
 # compute flow feature -> variability and velocity
-def flow_feature(refImg, curImg, tau, th):
-    # compute image variability and mask
-    variability = cv2.absdiff(cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY), cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY))
-    ret, varMask = cv2.threshold(variability, th, 255, cv2.THRESH_BINARY)
-    varMask = varMask.astype(np.uint8)
-    # calculate dense optical flow with the last and current image using farnback algorithm
-    OF = cv2.calcOpticalFlowFarneback(prev=cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY),
-                                      next=cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY),
-                                      pyr_scale=0.5,
-                                      levels=3,
-                                      winsize=15,
-                                      iterations=3,
-                                      poly_n=5,
-                                      poly_sigma=1.2,
-                                      flags=0,flow=None)
-    # get X and Y component
-    fx = OF[:,:,0]
-    fy = OF[:,:,1]
-    # compute magnitude and angle given OF
-    mag = cv2.magnitude(fx, fy)
-    angle = cv2.phase(fx, fy)
-    # compute velocity and direction
-    velocity = cv2.bitwise_and(mag, mag, mask=varMask)/tau
-    direction = cv2.bitwise_and(angle, angle, mask=varMask)
-    return variability, velocity, direction
+def flow_feature(refImg, curImg, th):
+    # compute difference
+    diff = cv2.subtract(cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY), cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY))
+    ret, diffMask = cv2.threshold(diff, th, 255, cv2.THRESH_BINARY)
+    diffMask = diffMask.astype(np.uint8)
+    diff = cv2.bitwise_and(diff, diff, mask=diffMask)
+    # compute sum
+    add = cv2.add(cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY), cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY))
+    # create filter
+    dg =  np.array(([1,0,-1]), dtype="float32")
+    gd =  np.array(([0.2163,0.5674,0.2163]), dtype="float32") # norm = 1
+    # compute component
+    dx = cv2.sepFilter2D(add, cv2.CV_32F, gd, dg)
+    dy = cv2.sepFilter2D(add, cv2.CV_32F, dg, gd)
+    # compute mag ang direction
+    mag, angle = cv2.cartToPolar(dy, dx)
+    # compute mag mask
+    velocity = cv2.bitwise_and(mag, mag, mask=diffMask)
+    direction = cv2.bitwise_and(angle, angle, mask=diffMask)*180/np.pi/2
+
+    return diff, velocity, direction
 
 refImg = cv2.imread('ref.png')
 refImg = cv2.resize(refImg, (640, 480))
@@ -95,7 +92,7 @@ curImg = cv2.resize(curImg, (640, 480))
 # compute feature
 hue, saturation, intensity = color_feature(img=curImg)
 magnitude, angle, curvature = edge_feature(img=curImg, th=50, nbPointCurv=5)
-variability, velocity, direction = flow_feature(refImg=refImg, curImg=curImg, tau=0.1, th=10)
+variability, velocity, direction = flow_feature(refImg=refImg, curImg=curImg, th=10)
 
 plt.imshow(hue)
 plt.show()
