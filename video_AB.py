@@ -102,19 +102,23 @@ while True:
     curFrame = cv2.resize(curFrame, (320,240))
     # compute feature
     hue, saturation, intensity = color_feature(img=curFrame)
-    magnitude, angle, curvature = edge_feature(img=curFrame, th=80, nbPointCurv=2)
-    variability, velocity, direction = flow_feature(refImg=refFrame, curImg=curFrame, th=50)
+    magnitude, angle, curvature = edge_feature(img=curFrame, th=30, nbPointCurv=2)
+    variability, velocity, direction = flow_feature(refImg=refFrame, curImg=curFrame, th=20)
     # plot process
-    feature_color_concat = np.concatenate((np.uint8(hue), np.uint8(saturation), np.uint8(intensity)), axis=1)
-    feature_edge_concat = np.concatenate((np.uint8(cv2.normalize(magnitude, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(angle, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(curvature, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F))), axis=1)
-    feature_flow_concat = np.concatenate((np.uint8(cv2.normalize(variability, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(velocity, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(direction, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F))), axis=1)
-    feature_position_concat = np.concatenate((np.uint8(cv2.normalize(xLoc, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(yLoc, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),
-                                          np.uint8(cv2.normalize(np.zeros((refFrame.shape[0], refFrame.shape[1])), None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F))), axis=1)
+    feature_color_concat = np.concatenate((cv2.applyColorMap(np.uint8(hue),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(saturation),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(intensity),cv2.COLORMAP_JET)), axis=1)
+
+    feature_edge_concat = np.concatenate((cv2.applyColorMap(np.uint8(cv2.normalize(magnitude, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(angle, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(curvature, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET)), axis=1)
+
+    feature_flow_concat = np.concatenate((cv2.applyColorMap(np.uint8(cv2.normalize(variability, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(velocity, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(direction, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET)), axis=1)
+
+    feature_position_concat = np.concatenate((cv2.applyColorMap(np.uint8(cv2.normalize(xLoc, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(yLoc, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(np.zeros((refFrame.shape[0], refFrame.shape[1])), None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET)), axis=1)
+
     feature_concat = np.concatenate((feature_color_concat, feature_edge_concat, feature_flow_concat, feature_position_concat), axis=0)
 
     cv2.imshow('feature', feature_concat)
