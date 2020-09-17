@@ -6,10 +6,10 @@ from imutils.video import WebcamVideoStream
 import matplotlib.pyplot as plt
 
 # extract color features -> Hue, saturation and intensity
-def color_feature(img):
+def color_feature(img, blurrLevel):
     hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, saturation, intensity = cv2.split(hsvImg)
-    return hue, saturation, intensity
+    return cv2.medianBlur(hue, blurrLevel), cv2.medianBlur(saturation, blurrLevel), intensity
 
 # extract edge feature -> magnitude, angle and curvature
 def edge_feature(img, th, nbPointCurv):
@@ -101,8 +101,8 @@ while True:
     curFrame = cam.read()
     curFrame = cv2.resize(curFrame, (320,240))
     # compute feature
-    hue, saturation, intensity = color_feature(img=curFrame)
-    magnitude, angle, curvature = edge_feature(img=curFrame, th=30, nbPointCurv=2)
+    hue, saturation, intensity = color_feature(img=curFrame, blurrLevel=3)
+    magnitude, angle, curvature = edge_feature(img=curFrame, th=20, nbPointCurv=1)
     variability, velocity, direction = flow_feature(refImg=refFrame, curImg=curFrame, th=20)
     # plot process
     feature_color_concat = np.concatenate((cv2.applyColorMap(np.uint8(hue),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(saturation),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(intensity),cv2.COLORMAP_JET)), axis=1)
@@ -128,4 +128,5 @@ while True:
     if cv2.waitKey(1) == 27:
         break
 
+cam.stop()
 cv2.destroyAllWindows()
