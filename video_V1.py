@@ -2,6 +2,7 @@ import math
 import numpy as np
 import cv2
 import imutils
+import copy
 from imutils.video import WebcamVideoStream
 import matplotlib.pyplot as plt
 
@@ -10,6 +11,10 @@ def color_feature(img, blurrLevel):
     hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, saturation, intensity = cv2.split(hsvImg)
     return cv2.medianBlur(hue, blurrLevel), cv2.medianBlur(saturation, blurrLevel), intensity
+
+# extract integral feature
+def integral_feature(img, lastIntegral, tau):
+    return  tau*img + (1-tau)*lastIntegral
 
 # extract edge feature -> magnitude, angle and curvature
 def edge_feature(img, th, nbPointCurv):
@@ -61,8 +66,7 @@ def edge_feature(img, th, nbPointCurv):
 
     return magnitude, angle, curvature
 
-# compute flow feature -> variability, velocity and drection
-# compute flow feature -> variability and velocity
+# compute flow feature -> variability, velocity and direction
 def flow_feature(refImg, curImg, th):
     # compute difference
     diff = cv2.subtract(cv2.cvtColor(curImg, cv2.COLOR_RGB2GRAY), cv2.cvtColor(refImg, cv2.COLOR_RGB2GRAY))
@@ -90,6 +94,10 @@ cam = WebcamVideoStream(src=0).start()
 refFrame = cam.read()
 refFrame = cv2.resize(refFrame, (320,240))
 
+# init integral
+tau = 0.01
+lastIntegral = refFrame
+
 # compute position feature
 xLoc = np.ones((refFrame.shape[0], refFrame.shape[1]))
 yLoc = np.ones((refFrame.shape[0], refFrame.shape[1]))
@@ -104,6 +112,7 @@ while True:
     hue, saturation, intensity = color_feature(img=curFrame, blurrLevel=3)
     magnitude, angle, curvature = edge_feature(img=curFrame, th=20, nbPointCurv=1)
     variability, velocity, direction = flow_feature(refImg=refFrame, curImg=curFrame, th=20)
+    integral = integral_feature(img=curFrame, lastIntegral = lastIntegral, tau=tau)
     # plot process
     feature_color_concat = np.concatenate((cv2.applyColorMap(np.uint8(hue),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(saturation),cv2.COLORMAP_JET), cv2.applyColorMap(np.uint8(intensity),cv2.COLORMAP_JET)), axis=1)
 
@@ -119,11 +128,16 @@ while True:
                                           cv2.applyColorMap(np.uint8(cv2.normalize(yLoc, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
                                           cv2.applyColorMap(np.uint8(cv2.normalize(np.zeros((refFrame.shape[0], refFrame.shape[1])), None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET)), axis=1)
 
-    feature_concat = np.concatenate((feature_color_concat, feature_edge_concat, feature_flow_concat, feature_position_concat), axis=0)
+    feature_integral_concat = np.concatenate((cv2.applyColorMap(np.uint8(cv2.normalize(integral, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(np.zeros((refFrame.shape[0], refFrame.shape[1])), None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET),
+                                          cv2.applyColorMap(np.uint8(cv2.normalize(np.zeros((refFrame.shape[0], refFrame.shape[1])), None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)),cv2.COLORMAP_JET)), axis=1)
+
+    feature_concat = np.concatenate((feature_color_concat, feature_edge_concat, feature_flow_concat, feature_position_concat, feature_integral_concat), axis=0)
 
     cv2.imshow('feature', feature_concat)
     # update image
-    refFrame = curFrame
+    refFrame = curFrame.copy()
+    lastIntegral = integral.copy()
 
     if cv2.waitKey(1) == 27:
         break
