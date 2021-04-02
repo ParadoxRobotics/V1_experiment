@@ -1,2 +1,2 @@
-# AB_experiment
-AB software implementation
+# V1_experiment
+Idea to reproduce a simple V1 cortex in code
