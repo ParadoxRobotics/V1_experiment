@@ -115,9 +115,6 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
     WB = 0.0
     # separate BGR Channel
     B,G,R = cv2.split(img)
-    R = LGN_processing(R, sigmaPos=2, sigmaNeg=20)
-    G = LGN_processing(G, sigmaPos=2, sigmaNeg=20)
-    B = LGN_processing(B, sigmaPos=2, sigmaNeg=20)
     # for every weight vector compute the SO and DO cell
     for w in range(len(weights)):
         # get weight and gabor config for each channel
@@ -140,8 +137,7 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
                 Ggabor = cv2.filter2D(G, -1, GgaborBank[s][o])
                 Bgabor = cv2.filter2D(B, -1, BgaborBank[s][o])
                 # weighted sum
-                #SOfeature = np.abs(weights[w][0])*Rgabor + np.abs(weights[w][1])*Ggabor + np.abs(weights[w][2])*Bgabor
-                SOfeature = cv2.merge((np.abs(weights[w][2])*Bgabor, np.abs(weights[w][1])*Ggabor, np.abs(weights[w][0])*Rgabor))
+                SOfeature = np.abs(weights[w][0])*Rgabor + np.abs(weights[w][1])*Ggabor + np.abs(weights[w][2])*Bgabor
                 # apply ReLU function
                 SOfeature[SOfeature < 0] = 0
                 plt.matshow(SOfeature)
@@ -158,6 +154,8 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
 # get state
 img = cv2.imread("/home/cyborg67/Bureau/tf.jpg")
 img = cv2.resize(img, (256,256))
+plt.matshow(img)
+plt.show()
 # normalize color image
 colorImg = img - np.mean(img)
 colorImg = colorImg / np.std(colorImg)
@@ -192,6 +190,7 @@ CC = complex_cell_processing(LGNImg, standardGaborBanks, standardGaborBanksDepha
 # compute color cell
 SO = color_cell_processing(colorImg, positiveGaborBanks, negativeGaborBanks, colorWeight)
 
+"""
 for i in range(0, len(SC)):
     plt.matshow(SC[i])
     plt.show()
@@ -203,3 +202,4 @@ for i in range(0, len(CC)):
 for i in range(0, len(SO)):
     plt.matshow(SO[i])
     plt.show()
+"""
