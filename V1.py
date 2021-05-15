@@ -67,6 +67,12 @@ def LGN_processing(img, sigmaPos, sigmaNeg):
     img = num / den
     return img
 
+"""
+# Divisize normalization
+def divisive_normalization(feature, size, ):
+    return
+"""
+
 # Simple log-gabor cell processing
 def simple_cell_processing(img, filterBanks):
     SCG = []
@@ -109,6 +115,9 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
     WB = 0.0
     # separate BGR Channel
     B,G,R = cv2.split(img)
+    R = LGN_processing(R, sigmaPos=2, sigmaNeg=20)
+    G = LGN_processing(G, sigmaPos=2, sigmaNeg=20)
+    B = LGN_processing(B, sigmaPos=2, sigmaNeg=20)
     # for every weight vector compute the SO and DO cell
     for w in range(len(weights)):
         # get weight and gabor config for each channel
@@ -131,25 +140,37 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
                 Ggabor = cv2.filter2D(G, -1, GgaborBank[s][o])
                 Bgabor = cv2.filter2D(B, -1, BgaborBank[s][o])
                 # weighted sum
-                SOfeature = weights[w][0]*Rgabor + weights[w][1]*Ggabor + weights[w][2]*Bgabor
+                #SOfeature = np.abs(weights[w][0])*Rgabor + np.abs(weights[w][1])*Ggabor + np.abs(weights[w][2])*Bgabor
+                SOfeature = cv2.merge((np.abs(weights[w][2])*Bgabor, np.abs(weights[w][1])*Ggabor, np.abs(weights[w][0])*Rgabor))
                 # apply ReLU function
                 SOfeature[SOfeature < 0] = 0
+                plt.matshow(SOfeature)
+                plt.show()
                 # divisive normalization
 
+                # append value
+                SO.append(SOfeature)
 
-    return SO, DO
+    return SO
 
 # Hierarchical center and surround processing
 
 # get state
 img = cv2.imread("/home/cyborg67/Bureau/tf.jpg")
 img = cv2.resize(img, (256,256))
-# LGN processing
-colorImg = LGN_processing(img, sigmaPos=2, sigmaNeg=20)
+# normalize color image
+colorImg = img - np.mean(img)
+colorImg = colorImg / np.std(colorImg)
 plt.matshow(colorImg)
 plt.show()
-grayImg = LGN_processing(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), sigmaPos=2, sigmaNeg=20)
+# normalize gray image
+grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) - np.mean(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+grayImg = grayImg / np.std(grayImg)
 plt.matshow(grayImg)
+plt.show()
+# LGN processing
+LGNImg = LGN_processing(grayImg, sigmaPos=2, sigmaNeg=20)
+plt.matshow(LGNImg)
 plt.show()
 # create gabor banks
 standardGaborBanks, positiveGaborBanks, negativeGaborBanks = gabor_filter_bank(kernelSize=[7,9,11,13], wavelength=[4,3.95,3.9,3.85], orientation=[0,45,90,135])
@@ -165,9 +186,11 @@ colorWeight = [[1/np.sqrt(2), -1/np.sqrt(2), 0.0],
                [-1/np.sqrt(3), -1/np.sqrt(3), -1/np.sqrt(3)]]
 
 # compute simple cell
-SC = simple_cell_processing(grayImg, standardGaborBanks)
+SC = simple_cell_processing(LGNImg, standardGaborBanks)
 # compute complexe cell
-CC = complex_cell_processing(grayImg, standardGaborBanks, standardGaborBanksDephase)
+CC = complex_cell_processing(LGNImg, standardGaborBanks, standardGaborBanksDephase)
+# compute color cell
+SO = color_cell_processing(colorImg, positiveGaborBanks, negativeGaborBanks, colorWeight)
 
 for i in range(0, len(SC)):
     plt.matshow(SC[i])
@@ -177,22 +200,6 @@ for i in range(0, len(CC)):
     plt.matshow(CC[i])
     plt.show()
 
-"""
-Value glossary :
-S1(size=7, wavelength=4),
-S1(size=9, wavelength=3.95),
-S1(size=11, wavelength=3.9),
-S1(size=13, wavelength=3.85),
-S1(size=15, wavelength=3.8),
-S1(size=17, wavelength=3.75),
-S1(size=19, wavelength=3.7),
-S1(size=21, wavelength=3.65),
-S1(size=23, wavelength=3.6),
-S1(size=25, wavelength=3.55),
-S1(size=27, wavelength=3.5),
-S1(size=29, wavelength=3.45),
-S1(size=31, wavelength=3.4),
-S1(size=33, wavelength=3.35),
-S1(size=35, wavelength=3.3),
-S1(size=37, wavelength=3.25),
-"""
+for i in range(0, len(SO)):
+    plt.matshow(SO[i])
+    plt.show()
