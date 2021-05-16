@@ -6,7 +6,7 @@ import copy
 from imutils.video import WebcamVideoStream
 import matplotlib.pyplot as plt
 
-# Log-gabor filter bank generator
+# gabor filter bank generator
 def gabor_filter_bank(kernelSize, wavelength, orientation):
     # standard gabor filter bank
     standardGaborBanks = []
@@ -102,6 +102,21 @@ def complex_cell_processing(img, filterBanks, filterBanksDephase):
             CCG.append(featureMap.astype('float64'))
     # return feature maps
     return CCG
+
+def color_channel_processing(img):
+    CC = []
+    # separate BGR Channel
+    B,G,R = cv2.split(img)
+    # basic global color opponnency
+    CR = R-(G+B)/2
+    CC.append(CR)
+    CG = G-(R+B)/2
+    CC.append(CG)
+    CB = B-(R+G)/2
+    CC.append(CB)
+    CY = (R+G)/2-np.abs(R-G)/2-B
+    CC.append(CY)
+    return CC
 
 # Color oppponent cell processing
 def color_cell_processing(img, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, weights, scaleFactor, semiSaturation):
@@ -203,10 +218,12 @@ colorWeight = [[1/np.sqrt(2), -1/np.sqrt(2), 0.0],
 SC = simple_cell_processing(LGNImg, standardGaborBanks)
 # compute complexe cell
 CC = complex_cell_processing(LGNImg, standardGaborBanks, standardGaborBanksDephase)
+# basic color channel processing
+BC = color_channel_processing(colorImg)
 # compute color cell
 SO, DO = color_cell_processing(colorImg, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, colorWeight, scaleFactor=1, semiSaturation=0.225)
 
-print("Channel = ", len(SC)+len(CC)+len(SO)+len(DO))
+print("Channel = ", len(SC)+len(CC)+len(BC)+len(SO)+len(DO))
 
 print("Simple Gabor cell")
 for i in range(0, len(SC)):
@@ -216,6 +233,11 @@ for i in range(0, len(SC)):
 print("Complexe Gabor cell")
 for i in range(0, len(CC)):
     plt.matshow(CC[i])
+    plt.show()
+
+print("basic color channel")
+for i in range(0, len(BC)):
+    plt.matshow(BC[i])
     plt.show()
 
 print("Single opponent color cell")
