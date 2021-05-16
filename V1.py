@@ -67,11 +67,14 @@ def LGN_processing(img, sigmaPos, sigmaNeg):
     img = num / den
     return img
 
-"""
 # Divisize normalization
-def divisive_normalization(feature, size, ):
-    return
-"""
+def divisive_normalization(feature, scaleFactor, semiSaturation):
+    # sum all channel
+    E = sum(feature)/len(feature)
+    # normalize all map
+    for i in range(0, len(feature)):
+        feature[i] = np.sqrt((scaleFactor*feature[i])/(semiSaturation**2+E))
+    return feature
 
 # Simple log-gabor cell processing
 def simple_cell_processing(img, filterBanks):
@@ -101,10 +104,11 @@ def complex_cell_processing(img, filterBanks, filterBanksDephase):
     return CCG
 
 # Color oppponent cell processing
-def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
+def color_cell_processing(img, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, weights, scaleFactor, semiSaturation):
     # simple oppponent and double opponent cells
     SO = []
     DO = []
+    DOorient = []
     # current bank use for each channel given the weights
     RgaborBank = None
     GgaborBank = None
@@ -115,7 +119,7 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
     WB = 0.0
     # separate BGR Channel
     B,G,R = cv2.split(img)
-    # for every weight vector compute the SO and DO cell
+    # for every weight vector compute the SO
     for w in range(len(weights)):
         # get weight and gabor config for each channel
         if(weights[w][0] > 0):
@@ -140,14 +144,26 @@ def color_cell_processing(img, positiveGaborBanks, negativeGaborBanks, weights):
                 SOfeature = np.abs(weights[w][0])*Rgabor + np.abs(weights[w][1])*Ggabor + np.abs(weights[w][2])*Bgabor
                 # apply ReLU function
                 SOfeature[SOfeature < 0] = 0
-                plt.matshow(SOfeature)
-                plt.show()
-                # divisive normalization
-
                 # append value
-                SO.append(SOfeature)
-
-    return SO
+                SO.append(SOfeature.astype('float64'))
+    # divisive normalization across channel
+    SO = divisive_normalization(SO, scaleFactor, semiSaturation)
+    # compute the DO
+    for c in range(0, len(SO)):
+        for s in range(0, len(standardGaborBanks)):
+            DOorient = []
+            for o in range(0, len(standardGaborBanks[0])):
+                DOfeature = cv2.filter2D(SO[c], -1, standardGaborBanks[s][o])
+                # apply ReLU function
+                DOfeature[DOfeature < 0] = 0
+                # append value
+                DOorient.append(DOfeature.astype('float64'))
+            # Divisive normalization across orientation
+            DOorient = divisive_normalization(DOorient, scaleFactor, semiSaturation)
+            for d in range(0, len(DOorient)):
+                # append value
+                DO.append(DOorient[d])
+    return SO, DO
 
 # Hierarchical center and surround processing
 
@@ -188,18 +204,26 @@ SC = simple_cell_processing(LGNImg, standardGaborBanks)
 # compute complexe cell
 CC = complex_cell_processing(LGNImg, standardGaborBanks, standardGaborBanksDephase)
 # compute color cell
-SO = color_cell_processing(colorImg, positiveGaborBanks, negativeGaborBanks, colorWeight)
+SO, DO = color_cell_processing(colorImg, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, colorWeight, scaleFactor=1, semiSaturation=0.225)
 
-"""
+print("Channel = ", len(SC)+len(CC)+len(SO)+len(DO))
+
+print("Simple Gabor cell")
 for i in range(0, len(SC)):
     plt.matshow(SC[i])
     plt.show()
 
+print("Complexe Gabor cell")
 for i in range(0, len(CC)):
     plt.matshow(CC[i])
     plt.show()
 
+print("Single opponent color cell")
 for i in range(0, len(SO)):
     plt.matshow(SO[i])
     plt.show()
-"""
+
+print("Double opponent color cell")
+for i in range(0, len(DO)):
+    plt.matshow(DO[i])
+    plt.show()
