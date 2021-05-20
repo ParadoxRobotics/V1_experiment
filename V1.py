@@ -103,22 +103,27 @@ def complex_cell_processing(img, filterBanks, filterBanksDephase):
     # return feature maps
     return CCG
 
+# Simple color processing
 def color_channel_processing(img):
     CC = []
     # separate BGR Channel
     B,G,R = cv2.split(img)
     # basic global color opponnency
-    CR = R-(G+B)/2
-    CC.append(CR)
-    CG = G-(R+B)/2
-    CC.append(CG)
-    CB = B-(R+G)/2
-    CC.append(CB)
-    CY = (R+G)/2-np.abs(R-G)/2-B
-    CC.append(CY)
+    CR = R-((G+B)/2)
+    CG = G-((R+B)/2)
+    CB = B-((R+G)/2)
+    CY = ((R+G)/2)-(np.abs(R-G)/2)-B
+    CRG = CR-CG
+    CGR = CG-CR
+    CBY = CB-CY
+    CYB = CY-CB
+    CC.append(CRG)
+    CC.append(CGR)
+    CC.append(CBY)
+    CC.append(CYB)
     return CC
 
-# Color oppponent cell processing
+# Color single / double oppponent cell processing
 def color_cell_processing(img, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, weights, scaleFactor, semiSaturation):
     # simple oppponent and double opponent cells
     SO = []
@@ -180,10 +185,10 @@ def color_cell_processing(img, standardGaborBanks, positiveGaborBanks, negativeG
                 DO.append(DOorient[d])
     return SO, DO
 
-# Hierarchical center and surround processing
+# Border Ownership processing
 
 # get state
-img = cv2.imread("/home/cyborg67/Bureau/tf.jpg")
+img = cv2.imread("/home/cyborg67/Bureau/lenna.png")
 img = cv2.resize(img, (256,256))
 plt.matshow(img)
 plt.show()
@@ -220,10 +225,8 @@ SC = simple_cell_processing(LGNImg, standardGaborBanks)
 CC = complex_cell_processing(LGNImg, standardGaborBanks, standardGaborBanksDephase)
 # basic color channel processing
 BC = color_channel_processing(colorImg)
-# compute color cell
-SO, DO = color_cell_processing(colorImg, standardGaborBanks, positiveGaborBanks, negativeGaborBanks, colorWeight, scaleFactor=1, semiSaturation=0.225)
 
-print("Channel = ", len(SC)+len(CC)+len(BC)+len(SO)+len(DO))
+print("Channel = ", len(SC)+len(CC)+len(BC))
 
 print("Simple Gabor cell")
 for i in range(0, len(SC)):
@@ -238,14 +241,4 @@ for i in range(0, len(CC)):
 print("basic color channel")
 for i in range(0, len(BC)):
     plt.matshow(BC[i])
-    plt.show()
-
-print("Single opponent color cell")
-for i in range(0, len(SO)):
-    plt.matshow(SO[i])
-    plt.show()
-
-print("Double opponent color cell")
-for i in range(0, len(DO)):
-    plt.matshow(DO[i])
     plt.show()
