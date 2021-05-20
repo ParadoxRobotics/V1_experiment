@@ -14,6 +14,31 @@ def ImagePyramid(img, level):
         pyramid.append(cv2.pyrDown(pyramid[i-1]))
     return pyramid
 
+# Lateral geniculate nucleus processing
+def LGN_processing(img, sigmaPos, sigmaNeg):
+    # convert image to float and normalize it
+    img = img.astype(np.float32) / 255.0
+    # compute first gausian difference
+    blur = cv2.GaussianBlur(img, (0, 0), sigmaX=sigmaPos, sigmaY=sigmaPos)
+    num = img - blur
+    # compute second gausian
+    blur = cv2.GaussianBlur(num*num, (0, 0), sigmaX=sigmaNeg, sigmaY=sigmaNeg)
+    den = cv2.pow(blur, 0.5)
+    img = num / den
+    return img
+
+# Gaussian center and surround processing
+def center_and_surround(img, kernelSize, sigmaI, sigmaO):
+    # compute inner gaussian
+    innerGaussian = cv2.GaussianBlur(img, (kernelSize, kernelSize), sigmaX=sigmaI, sigmaY=sigmaI)
+    # compute outer gaussian
+    outerGaussian = cv2.GaussianBlur(img, (kernelSize, kernelSize), sigmaX=sigmaO, sigmaY=sigmaO)
+    # compute ON center and surround response
+    CSON = innerGaussian - outerGaussian
+    # compute OFF center and surround response
+    CSOFF = -innerGaussian + outerGaussian
+    return CSON, CSOFF
+
 # gabor filter bank generator
 def gabor_filter_bank(kernelSize, wavelength, orientation):
     # standard gabor filter bank
@@ -39,19 +64,6 @@ def gabor_filter_bank(kernelSize, wavelength, orientation):
         standardGaborBanks.append(standardFilter.astype('float64'))
     # return value
     return standardGaborBanks
-
-# Lateral geniculate nucleus processing
-def LGN_processing(img, sigmaPos, sigmaNeg):
-    # convert image to float and normalize it
-    img = img.astype(np.float32) / 255.0
-    # compute first gausian difference
-    blur = cv2.GaussianBlur(img, (0, 0), sigmaX=sigmaPos, sigmaY=sigmaPos)
-    num = img - blur
-    # compute second gausian
-    blur = cv2.GaussianBlur(num*num, (0, 0), sigmaX=sigmaNeg, sigmaY=sigmaNeg)
-    den = cv2.pow(blur, 0.5)
-    img = num / den
-    return img
 
 # Simple log-gabor cell processing
 def simple_cell_processing(img, filterBanks):
@@ -133,6 +145,7 @@ for l in range(0,len(grayImgPyr)):
 # create gabor banks
 standardGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0,45,90,135])
 dephasedGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0+90,45+90,90+90,135+90])
+"""
 # simple gabor banks
 print("Simple Gabor cell")
 for i in range(0, len(standardGaborBanks)):
@@ -143,7 +156,7 @@ print("dephased Gabor cell")
 for i in range(0, len(dephasedGaborBanks)):
     plt.matshow(dephasedGaborBanks[i])
     plt.show()
-
+"""
 # compute simple cell response at each scale of the image pyramid
 simpleCellPyr = []
 for l in range(0,len(grayImgPyr)):
@@ -152,6 +165,7 @@ for l in range(0,len(grayImgPyr)):
 complexeCellPyr = []
 for l in range(0,len(grayImgPyr)):
     complexeCellPyr.append(complex_cell_processing(grayImgPyr[l], standardGaborBanks, dephasedGaborBanks))
+"""
 # simple gabor response
 print("Simple Gabor response")
 for l in range(0, len(simpleCellPyr)):
@@ -164,14 +178,36 @@ for l in range(0, len(complexeCellPyr)):
     for o in range(0, len(complexeCellPyr[0])):
         plt.matshow(complexeCellPyr[l][o])
         plt.show()
-
+"""
 # Compute color opponent response at each scale of the image pyramid
 colorOpponentPyr = []
 for l in range(0,len(colorImgPyr)):
     colorOpponentPyr.append(color_channel_processing(colorImgPyr[l]))
+"""
 # color opponent response
 print("Color opponent response")
 for l in range(0, len(colorOpponentPyr)):
     for c in range(0, len(colorOpponentPyr[0])):
         plt.matshow(colorOpponentPyr[l][c])
         plt.show()
+"""
+# compute center and surround on edge, color and motion
+grayON = []
+grayOFF = []
+colorON = []
+colorOFF = []
+for l in range(0, len(colorImgPyr)):
+    CON, COFF = center_and_surround(colorImgPyr[l], 5, 0.9, 2.7)
+    GON, GOFF = center_and_surround(grayImgPyr[l], 5, 0.9, 2.7)
+    plt.matshow(CON)
+    plt.show()
+    plt.matshow(COFF)
+    plt.show()
+    plt.matshow(GON)
+    plt.show()
+    plt.matshow(GOFF)
+    plt.show()
+    grayON.append(GON)
+    grayOFF.append(GOFF)
+    colorON.append(CON)
+    colorOFF.append(COFF)
