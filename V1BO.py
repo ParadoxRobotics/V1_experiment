@@ -111,40 +111,46 @@ def color_channel_processing(img):
     return CC
 
 # get state
-img = cv2.imread("/home/cyborg67/Bureau/lenna.png")
+img = cv2.imread("/home/main/Bureau/lenna.png")
 img = cv2.resize(img, (256,256))
 plt.matshow(img)
 plt.show()
 
 # create spatial pyramid
-imgPyr = ImagePyramid(img, 4)
+imgPyr = ImagePyramid(img, 3)
 # normalize color image pyramid
 colorImgPyr = []
 for l in range(0,len(imgPyr)):
     colorImg = imgPyr[l] - np.mean(imgPyr[l])
     colorImg = colorImg / np.std(colorImg)
     colorImgPyr.append(colorImg)
+    """
     plt.matshow(colorImg)
     plt.show()
+    """
 # normalize gray image
 grayImgPyr = []
 for l in range(0,len(imgPyr)):
     grayImg = cv2.cvtColor(imgPyr[l], cv2.COLOR_BGR2GRAY) - np.mean(cv2.cvtColor(imgPyr[l], cv2.COLOR_BGR2GRAY))
     grayImg = grayImg / np.std(grayImg)
     grayImgPyr.append(grayImg)
+    """
     plt.matshow(grayImg)
     plt.show()
+    """
 # LGN processing
 LGNImgPyr = []
 for l in range(0,len(grayImgPyr)):
     LGNImg = LGN_processing(grayImgPyr[l], sigmaPos=2, sigmaNeg=20)
     LGNImgPyr.append(LGNImg)
+    """
     plt.matshow(LGNImg)
     plt.show()
+    """
 
 # create gabor banks
-standardGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0,45,90,135])
-dephasedGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0+90,45+90,90+90,135+90])
+standardGaborBanks = gabor_filter_bank(kernelSize=5, wavelength=4, orientation=[0,45,90,135])
+dephasedGaborBanks = gabor_filter_bank(kernelSize=5, wavelength=4, orientation=[0+90,45+90,90+90,135+90])
 """
 # simple gabor banks
 print("Simple Gabor cell")
@@ -196,9 +202,18 @@ grayON = []
 grayOFF = []
 colorON = []
 colorOFF = []
+colorOpponentON = []
+colorOpponentOFF = []
+simpleCellON = []
+simpleCellOFF = []
+complexeCellON = []
+complexeCellOFF = []
+# compute at all level in the pyramid
 for l in range(0, len(colorImgPyr)):
+    # basic color
     CON, COFF = center_and_surround(colorImgPyr[l], 5, 0.9, 2.7)
     GON, GOFF = center_and_surround(grayImgPyr[l], 5, 0.9, 2.7)
+    """
     plt.matshow(CON)
     plt.show()
     plt.matshow(COFF)
@@ -207,7 +222,65 @@ for l in range(0, len(colorImgPyr)):
     plt.show()
     plt.matshow(GOFF)
     plt.show()
+    """
     grayON.append(GON)
     grayOFF.append(GOFF)
     colorON.append(CON)
     colorOFF.append(COFF)
+
+    # basic color opponent
+    COON = []
+    COOFF = []
+    # CAS on color
+    for c in range(0, len(colorOpponentPyr[0])):
+        COCON, COCOFF = center_and_surround(colorOpponentPyr[l][c], 5, 0.9, 2.7)
+        """
+        plt.matshow(COCON)
+        plt.show()
+        plt.matshow(COCOFF)
+        plt.show()
+        """
+        # append current scale
+        COON.append(COCON)
+        COOFF.append(COCOFF)
+    # append for all scale
+    colorOpponentON.append(COON)
+    colorOpponentOFF.append(COOFF)
+
+    # simple cell
+    SCON = []
+    SCOFF = []
+    # CAS on simple cell
+    for o in range(0, len(simpleCellPyr[0])):
+        SCOON, SCOOFF = center_and_surround(simpleCellPyr[l][o], 5, 0.9, 2.7)
+        """
+        plt.matshow(SCOON)
+        plt.show()
+        plt.matshow(SCOOFF)
+        plt.show()
+        """
+        # append current scale
+        SCON.append(SCOON)
+        SCOFF.append(SCOOFF)
+    # append for all scale
+    simpleCellON.append(SCON)
+    simpleCellOFF.append(SCOFF)
+
+    # complexe cell
+    CCON = []
+    CCOFF = []
+    # CAS on complexe cell
+    for o in range(0, len(complexeCellPyr[0])):
+        CCOON, CCOOFF = center_and_surround(complexeCellPyr[l][o], 5, 0.9, 2.7)
+        """
+        plt.matshow(CCOON)
+        plt.show()
+        plt.matshow(CCOOFF)
+        plt.show()
+        """
+        # append current scale
+        CCON.append(CCOON)
+        CCOFF.append(CCOOFF)
+    # append for all scale
+    complexeCellON.append(CCON)
+    complexeCellOFF.append(CCOFF)
