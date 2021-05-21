@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from scipy.special import spherical_jn
 import cv2
 import imutils
 import copy
@@ -38,6 +39,28 @@ def center_and_surround(img, kernelSize, sigmaI, sigmaO):
     # compute OFF center and surround response
     CSOFF = -innerGaussian + outerGaussian
     return CSON, CSOFF
+
+def center_and_surround_filter(kernelSize, sigmaI, sigmaO):
+    CSON = []
+    CSOFF = []
+    # compute filter
+    x, y = np.mgrid[:kernelSize, :kernelSize] - (kernelSize // 2)
+    CSON = (1/(2*np.pi*sigmaI**2))*np.exp(-((x**2+y**2)/(2*sigmaI**2))) - (1/(2*np.pi*sigmaO**2))*np.exp(-((x**2+y**2)/(2*sigmaO**2)))
+    CSOFF = -(1/(2*np.pi*sigmaI**2))*np.exp(-((x**2+y**2)/(2*sigmaI**2))) + (1/(2*np.pi*sigmaO**2))*np.exp(-((x**2+y**2)/(2*sigmaO**2)))
+    return CSON, CSOFF
+
+# Von Mises distribition filter
+def von_mises_filter(kernelSize, radius, orientation):
+    VMD = []
+    # create kernel grid
+    for o in range(0, len(orientation)):
+        theta = np.deg2rad(orientation[o]+90)
+        # compute filter
+        x, y = np.mgrid[:kernelSize, :kernelSize] - (kernelSize // 2)
+        numFilter = np.exp((np.sqrt(x**2+y**2)-radius)*np.sin(np.arctan2(y, x)-theta))
+        denumFilter = 2*np.pi*spherical_jn(0, np.sqrt(x**2+y**2))*(np.sqrt(x**2+y**2)-radius)
+        VMF = - (numFilter/denumFilter)
+    return VMD
 
 # gabor filter bank generator
 def gabor_filter_bank(kernelSize, wavelength, orientation):
@@ -109,6 +132,12 @@ def color_channel_processing(img):
     CC.append(CBY)
     CC.append(CYB)
     return CC
+
+# Border Ownership grouping
+def border_ownership_processing():
+    # border ownership pyramid
+    BO = []
+    return BO
 
 # get state
 img = cv2.imread("/home/main/Bureau/lenna.png")
