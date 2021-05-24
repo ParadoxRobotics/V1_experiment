@@ -161,6 +161,49 @@ def color_channel_processing(img):
     CC.append(CYB)
     return CC
 
+# border ownership processing
+def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks):
+    # compute complexe cell reponse over all orientation and scale
+    complexeCellPyr = []
+    for l in range(0,len(grayImgPyr)):
+        complexeCellPyr.append(complex_cell_processing(featurePyr[l], standardGaborBanks, dephasedGaborBanks))
+    # compute von Mises filter response over all orientation and scale
+    vonMisesON = []
+    dephasedVonMisesON = []
+    vonMiseOFF = []
+    dephasedVonMisesOFF = []
+    for l in range(0,len(grayImgPyr)):
+        vonMisesON.append(von_mises_processing(featurePyrON[l], vonMisesBanks))
+        dephasedVonMisesON.append(von_mises_processing(featurePyrON[l], dephasedVonMisesBanks))
+        vonMiseOFF.append(von_mises_processing(featurePyrOFF[l], vonMisesBanks))
+        dephasedVonMisesOFF.append(von_mises_processing(featurePyrOFF[l], dephasedVonMisesBanks))
+    # compute border cell ON and OFF
+    B = []
+    for level in range(0, len(vonMisesON)):
+        BO = []
+        for orient in range(0, len(vonMisesON[0])):
+            BL = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesON, level, orient)-1*sumVonMiseScale(vonMisesON, level, orient))
+            BD = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesOFF, level, orient)-1*sumVonMiseScale(vonMiseOFF, level, orient))
+            BO.append(BL-BD)
+        # append value
+        B.append(BO)
+    return B
+
+# grouping using simplified gestalt principle
+def grouping_border_ownership(BO, BOD, vonMises):
+    G = []
+    for level in range(0, len(BO)):
+        GO = []
+        sumGO = np.empty([BO[l][0].shape[0], BO[l][0].shape[0]])
+        for orient in range(0, len(BO[0])):
+            if (orient==0):
+                sumGO = cv2.filter2D(BO[level][orient]-BOD[level][orient], -1, vonMises[orient])
+            else:
+                sumGO += cv2.filter2D(BO[level][orient]-BOD[level][orient], -1, vonMises[orient])
+        # append summed orientatio border
+        G.append(sumGO)
+    return G
+
 # Flicker motion processing
 def flicker_processing(imgCur, imgPrev):
     return cv2.absdiff(imgCur, imgPrev)
@@ -213,6 +256,9 @@ for l in range(0,len(grayImgPyr)):
 standardGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0,45,90,135])
 dephasedGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[90,135,180,225])
 
+standard2GaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0+180,45+180,90+180,135+180])
+dephased2GaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[90+180,135+180,180+180,225+180])
+
 # compute simple cell response at each scale of the image pyramid
 simpleCellPyr = []
 for l in range(0,len(grayImgPyr)):
@@ -244,8 +290,6 @@ for l in range(0, len(simpleCellPyr)):
 # compute center and surround on edge, color and motion
 grayON = []
 grayOFF = []
-colorON = []
-colorOFF = []
 simpleCellON = []
 simpleCellOFF = []
 colorOpponentON = []
@@ -257,12 +301,9 @@ motionCellOFF = []
 # compute at all level in the pyramid
 for l in range(0, len(colorImgPyr)):
     # basic color
-    CON, COFF = center_and_surround(colorImgPyr[l], 5, 0.9, 2.7)
     GON, GOFF = center_and_surround(grayImgPyr[l], 5, 0.9, 2.7)
     grayON.append(GON)
     grayOFF.append(GOFF)
-    colorON.append(CON)
-    colorOFF.append(COFF)
 
     # basic color opponent
     COON = []
@@ -309,34 +350,51 @@ for l in range(0, len(colorImgPyr)):
 # create Von mises filter banks
 vonMisesBanks = von_mises_filter(kernelSize=7, radius=2.7, orientation=[0,45,90,135])
 dephasedVonMisesBanks = von_mises_filter(kernelSize=7, radius=2.7, orientation=[180,45+180,90+180,135+180])
+dephased2VonMisesBanks = von_mises_filter(kernelSize=7, radius=2.7, orientation=[360,45+360,90+360,135+360])
 
+# reshape pyramid (TODO : better structure at start for easier computation)
+RGON = []
+GRON = []
+RGOFF = []
+GROFF = []
+BYON = []
+YBON = []
+BYOFF = []
+BYON = []
+for l in range(0, colorOpponentON):
+    RGON.append(colorOpponentON[l][0])
+    GRON.append(colorOpponentON[l][1])
+    RGOFF.append(colorOpponentOFF[l][0])
+    GROFF.append(colorOpponentOFF[l][1])
+    BYON.append(colorOpponentON[l][2])
+    YBON.append(colorOpponentON[l][3])
+    BYOFF.append(colorOpponentOFF[l][2])
+    YBOFF.append(colorOpponentOFF[l][3])
 
-# border owner ship using intensity information
+G0ON = []
+G45ON = []
+G90ON = []
+G135ON = []
+G0OFF = []
+G45OFF = []
+G90OFF = []
+G135OFF = []
+for l in range(0, simpleCellON):
+    G0ON.append(simpleCellON[l][0])
+    G45ON.append(simpleCellON[l][1])
+    G0OFF.append(simpleCellOFF[l][0])
+    G45OFF.append(simpleCellOFF[l][1])
+    G90ON.append(simpleCellON[l][2])
+    G135ON.append(simpleCellON[l][3])
+    G90OFF.append(simpleCellOFF[l][2])
+    G135OFF.append(simpleCellOFF[l][3])
 
-# compute complexe cell reponse over all orientation and scale
-complexeCellPyr = []
-for l in range(0,len(grayImgPyr)):
-    complexeCellPyr.append(complex_cell_processing(grayImgPyr[l], standardGaborBanks, dephasedGaborBanks))
-# compute von Mises filter response over all orientation and scale
-vonMisesON = []
-dephasedVonMisesON = []
-vonMiseOFF = []
-dephasedVonMisesOFF = []
-for l in range(0,len(grayImgPyr)):
-    vonMisesON.append(von_mises_processing(grayON[l], vonMisesBanks))
-    dephasedVonMisesON.append(von_mises_processing(grayON[l], dephasedVonMisesBanks))
-    vonMiseOFF.append(von_mises_processing(grayOFF[l], vonMisesBanks))
-    dephasedVonMisesOFF.append(von_mises_processing(grayOFF[l], dephasedVonMisesBanks))
+# compute border ownership for gray pyramid
+grayPyrBO = border_ownership(grayImgPyr, grayON, grayOFF, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+DephasedGrayPyrBO = border_ownership(grayImgPyr, grayON, grayOFF, standard2GaborBanks, dephased2GaborBanks, dephasedVonMisesBanks, dephased2VonMisesBanks)
+# gestalt grouping
+GroupingGrayPyr = grouping_border_ownership(grayPyrBO, DephasedGrayPyrBO, vonMisesBanks)
 
-# compute border cell ON and OFF
-B = []
-for level in range(0, len(vonMisesON)):
-    BO = []
-    for orient in range(0, len(vonMisesON[0])):
-        BL = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesON, level, orient)-1*sumVonMiseScale(vonMisesON, level, orient))
-        BD = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesOFF, level, orient)-1*sumVonMiseScale(vonMiseOFF, level, orient))
-        BO.append(BL-BD)
-        plt.matshow(BL-BD)
-        plt.show()
-    # append value
-    B.append(BO)
+for l in range(0, len(GroupingGrayPyr)):
+    plt.matshow(GroupingGrayPyr[l])
+    plt.show()
