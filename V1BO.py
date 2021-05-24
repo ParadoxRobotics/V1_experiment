@@ -40,6 +40,7 @@ def center_and_surround(img, kernelSize, sigmaI, sigmaO):
     CSOFF = -innerGaussian + outerGaussian
     return CSON, CSOFF
 
+# generate center and surround filter
 def center_and_surround_filter(kernelSize, sigmaI, sigmaO):
     CSON = []
     CSOFF = []
@@ -66,6 +67,28 @@ def von_mises_filter(kernelSize, radius, orientation):
         # append
         VMD.append(VMF)
     return VMD
+
+# compute von Mise filter over an image
+def von_mises_processing(img, vonMisesBanks):
+    VMF = []
+    for o in range(0, len(vonMisesBanks)):
+        VMF.append(cv2.filter2D(img, -1, vonMisesBanks[o]))
+    return VMF
+
+# sum von mise reponse over a target scale and orient
+def sumVonMiseScale(vonMiseReponsePyr, scale, orientation):
+    # get the shape of the summed map
+    targetSize = vonMiseReponsePyr[scale][orientation].shape[0]
+    # init sum map
+    sum = np.empty([targetSize, targetSize])
+    if(scale==0):
+        sum = (1/2)*cv2.resize(vonMiseReponsePyr[scale][orientation], (targetSize, targetSize))
+        return sum
+    else:
+        sum = (1/2)*cv2.resize(vonMiseReponsePyr[0][orientation], (targetSize, targetSize))
+        for s in range(1,scale):
+            sum += (1/2**s+1)*cv2.resize(vonMiseReponsePyr[s][orientation], (targetSize, targetSize))
+    return sum
 
 # gabor filter bank generator
 def gabor_filter_bank(kernelSize, wavelength, orientation):
@@ -147,11 +170,11 @@ def motion_processing(orientCur, prevOrient):
     return cv2.absdiff(orientCur, prevOrient)
 
 # get state
-img = cv2.imread("/home/cyborg67/Bureau/cur.png")
+img = cv2.imread("/home/main/Bureau/car2.jpg")
 img = cv2.resize(img, (512,512))
 plt.matshow(img)
 plt.show()
-prevImg = cv2.imread("/home/cyborg67/Bureau/ref.png")
+prevImg = cv2.imread("/home/main/Bureau/car1.jpg")
 prevImg = cv2.resize(prevImg, (512,512))
 plt.matshow(prevImg)
 plt.show()
@@ -198,10 +221,6 @@ for l in range(0,len(grayImgPyr)):
 prevSimpleCellPyr = []
 for l in range(0,len(prevGrayImgPyr)):
     prevSimpleCellPyr.append(simple_cell_processing(prevGrayImgPyr[l], standardGaborBanks))
-# compute complexe cell response at each scale of the image pyramid
-complexeCellPyr = []
-for l in range(0,len(grayImgPyr)):
-    complexeCellPyr.append(complex_cell_processing(grayImgPyr[l], standardGaborBanks, dephasedGaborBanks))
 
 # Compute color opponent response at each scale of the image pyramid
 colorOpponentPyr = []
@@ -288,11 +307,36 @@ for l in range(0, len(colorImgPyr)):
     motionCellOFF.append(MCOFF)
 
 # create Von mises filter banks
-vonMisesBanks = von_mises_filter(kernelSize=13, radius=2, orientation=[0,45,90,135])
-dephasedVonMisesBanks = von_mises_filter(kernelSize=13, radius=2, orientation=[180,45+180,90+180,135+180])
+vonMisesBanks = von_mises_filter(kernelSize=7, radius=2.7, orientation=[0,45,90,135])
+dephasedVonMisesBanks = von_mises_filter(kernelSize=7, radius=2.7, orientation=[180,45+180,90+180,135+180])
 
-for o in range(0, len(vonMisesBanks)):
-    plt.matshow(vonMisesBanks[o])
-    plt.show()
-    plt.matshow(dephasedVonMisesBanks[o])
-    plt.show()
+
+# border owner ship using intensity information
+
+# compute complexe cell reponse over all orientation and scale
+complexeCellPyr = []
+for l in range(0,len(grayImgPyr)):
+    complexeCellPyr.append(complex_cell_processing(grayImgPyr[l], standardGaborBanks, dephasedGaborBanks))
+# compute von Mises filter response over all orientation and scale
+vonMisesON = []
+dephasedVonMisesON = []
+vonMiseOFF = []
+dephasedVonMisesOFF = []
+for l in range(0,len(grayImgPyr)):
+    vonMisesON.append(von_mises_processing(grayON[l], vonMisesBanks))
+    dephasedVonMisesON.append(von_mises_processing(grayON[l], dephasedVonMisesBanks))
+    vonMiseOFF.append(von_mises_processing(grayOFF[l], vonMisesBanks))
+    dephasedVonMisesOFF.append(von_mises_processing(grayOFF[l], dephasedVonMisesBanks))
+
+# compute border cell ON and OFF
+B = []
+for level in range(0, len(vonMisesON)):
+    BO = []
+    for orient in range(0, len(vonMisesON[0])):
+        BL = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesON, level, orient)-1*sumVonMiseScale(vonMisesON, level, orient))
+        BD = complexeCellPyr[level][orient]*(1+sumVonMiseScale(dephasedVonMisesOFF, level, orient)-1*sumVonMiseScale(vonMiseOFF, level, orient))
+        BO.append(BL-BD)
+        plt.matshow(BL-BD)
+        plt.show()
+    # append value
+    B.append(BO)
