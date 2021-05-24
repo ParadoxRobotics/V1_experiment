@@ -14,6 +14,20 @@ def ImagePyramid(img, level):
         pyramid.append(cv2.pyrDown(pyramid[i-1]))
     return pyramid
 
+def mean_std_normalization(imgPyr):
+    NPyr = []
+    for l in range(0, len(imgPyr)):
+        normalizedPyr = imgPyr[l]-np.mean(imgPyr[l])
+        normalizedPyr = normalizedPyr/np.std(normalizedPyr)
+        NPyr.append(normalizedPyr)
+    return NPyr
+
+def intensity_pyramid(imgPyr):
+    intPyr = []
+    for l in range(0, len(imgPyr)):
+        intPyr.append(cv2.cvtColor(imgPyr[l], cv2.COLOR_BGR2GRAY))
+    return intPyr
+
 # Lateral geniculate nucleus processing over an image/feature pyramid
 def LGN_processing(imgPyr, sigmaPos, sigmaNeg):
     LGNPyr = []
@@ -64,7 +78,7 @@ def von_mises_processing(imgPyr, vonMisesBank):
     VMF = []
     for f in range(0, len(vonMisesBanks)):
         featurePyramid = []
-        for l in range(0, len(imgPyr))
+        for l in range(0, len(imgPyr)):
             featurePyramid.append(cv2.filter2D(imgPyr[l], -1, vonMisesBank[f]).astype('float64'))
         VMF.append(featurePyramid)
     # return filter feature pyramid at different orientation ans scale
@@ -117,13 +131,13 @@ def simple_cell_processing(imgPyr, filterBanks):
     SCG = []
     for o in range(0, len(filterBanks)):
         featurePyramid = []
-        for l in range(0, len(imgPyr))
+        for l in range(0, len(imgPyr)):
             featureMap = cv2.filter2D(imgPyr[l], -1, filterBanks[o])
             # apply ReLU function
             featureMap[featureMap < 0] = 0
             # append
             featurePyramid.append(featureMap.astype('float64'))
-        SDG.append(featurePyramid)
+        SCG.append(featurePyramid)
     # return feature maps
     return SCG
 
@@ -177,7 +191,7 @@ def color_opponent_processing(imgPyr):
 # Compute Flicker motion feature map over an image/feature pyramid
 def flicker_processing(imgPyrCur, imgPyrRef):
     FlickerPyr = []
-    for l in range-0, len(imgPyrCur):
+    for l in range(0, len(imgPyrCur)):
         FlickerPyr.append(cv2.absdiff(imgPyrCur[l], imgPyrRef[l]))
     return FlickerPyr
 
@@ -218,3 +232,54 @@ def grouping_border_ownership(BO, BOD, vonMises):
         # append summed orientation border
         G.append(sumGO)
     return G
+
+# get state
+img = cv2.imread("/home/cyborg67/Bureau/cur.png")
+img = cv2.resize(img, (256,256))
+plt.matshow(img)
+plt.show()
+prevImg = cv2.imread("/home/cyborg67/Bureau/ref.png")
+prevImg = cv2.resize(prevImg, (256,256))
+plt.matshow(prevImg)
+plt.show()
+
+# create spatial pyramid
+refImgPyr = ImagePyramid(img, 3)
+curImgPyr = ImagePyramid(prevImg, 3)
+
+# compute gabor filter bank
+standardGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0,45,90,135])
+dephasedGaborBanks = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[90,135,180,225])
+standardGaborBanksPI = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[0+180,45+180,90+180,135+180])
+dephasedGaborBanksPI = gabor_filter_bank(kernelSize=7, wavelength=4, orientation=[90+180,135+180,180+180,225+180])
+# compute Von Mise filter bank
+vonMisesBanks = von_mises_filter_bank(kernelSize=7, radius=2.7, orientation=[0,45,90,135])
+dephasedVonMisesBanks = von_mises_filter_bank(kernelSize=7, radius=2.7, orientation=[180,45+180,90+180,135+180])
+dephasedVonMisesBanksPI = von_mises_filter_bank(kernelSize=7, radius=2.7, orientation=[360,45+360,90+360,135+360])
+
+# compute normalized gray pyramid
+refGrayPyr = mean_std_normalization(imgPyr=intensity_pyramid(imgPyr=refImgPyr))
+curGrayPyr = mean_std_normalization(imgPyr=intensity_pyramid(imgPyr=curImgPyr))
+# compute color opponent pyramid
+colorPyr = color_opponent_processing(imgPyr=mean_std_normalization(imgPyr=refImgPyr))
+# compute LGN pyramid
+refLGNPyr = LGN_processing(imgPyr=refGrayPyr, sigmaPos=2, sigmaNeg=20)
+curLGNPyr = LGN_processing(imgPyr=curGrayPyr, sigmaPos=2, sigmaNeg=20)
+# compute gabor pyramid
+gaborPyr = simple_cell_processing(imgPyr=refGrayPyr, filterBanks=standardGaborBanks)
+# compute flicker pyramid
+flickerPyr = flicker_processing(imgPyrCur=curGrayPyr, imgPyrRef=refGrayPyr)
+
+# compute ON/OFF gray cell pyramid
+refGrayONPyr, refGrayOFFPyr = center_and_surround(imgPyr=refGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+curGrayONPyr, curGrayOFFPyr = center_and_surround(imgPyr=curGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+# compute ON/OFF flicker cell pyramid
+flickerONPyr, flickerOFFPyr = center_and_surround(imgPyr=flickerPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+
+# compute ON/OFF color opponent cell pyramid
+colorONPyr, colorOFFPyr = center_and_surround(imgPyr=colorPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+# compute ON/OFF LGN cell pyramid
+refLGNONPyr, refLGNOFFPyr = center_and_surround(imgPyr=refLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+curLGNONPyr, curLGNOFFPyr = center_and_surround(imgPyr=curLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+# compute ON/OFF simple cell pyramid
+simpleONPyr, simpleOFFPyr = center_and_surround(imgPyr=gaborPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
