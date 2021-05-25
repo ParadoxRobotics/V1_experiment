@@ -45,7 +45,7 @@ def LGN_processing(imgPyr, sigmaPos, sigmaNeg):
     return LGNPyr
 
 # Gaussian center and surround processing over an image/feature pyramid
-def center_and_surround(imgPyr, kernelSize, sigmaI, sigmaO):
+def center_and_surround_single(imgPyr, kernelSize, sigmaI, sigmaO):
     CCPyrON = []
     CCPyrOFF = []
     for l in range(0, len(imgPyr)):
@@ -55,6 +55,23 @@ def center_and_surround(imgPyr, kernelSize, sigmaI, sigmaO):
         CSOFF = -innerGaussian + outerGaussian
         CCPyrON.append(CSON)
         CCPyrOFF.append(CSOFF)
+    return CCPyrON, CCPyrOFF
+
+def center_and_surround_feature(imgPyr, kernelSize, sigmaI, sigmaO):
+    CCPyrON = []
+    CCPyrOFF = []
+    for o in range(0, len(imgPyr)):
+        CCPyrFeatureON = []
+        CCPyrFeatureOFF = []
+        for l in range(0, len(imgPyr[0])):
+            innerGaussian = cv2.GaussianBlur(imgPyr[o][l], (kernelSize, kernelSize), sigmaX=sigmaI, sigmaY=sigmaI)
+            outerGaussian = cv2.GaussianBlur(imgPyr[o][l], (kernelSize, kernelSize), sigmaX=sigmaO, sigmaY=sigmaO)
+            CSON = innerGaussian - outerGaussian
+            CSOFF = -innerGaussian + outerGaussian
+            CCPyrFeatureON.append(CSON)
+            CCPyrFeatureOFF.append(CSOFF)
+        CCPyrON.append(CCPyrFeatureON)
+        CCPyrOFF.append(CCPyrFeatureOFF)
     return CCPyrON, CCPyrOFF
 
 # Circular Von Mises filter
@@ -211,8 +228,8 @@ def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks
     for l in range(0, len(vonMisesON)):
         BO = []
         for o in range(0, len(vonMisesON[0])):
-            BL = complexeCellPyr[o][l]*(1+sumVonMiseScale(dephasedVonMisesON, l, o)-1*sumVonMiseScale(vonMisesON, l, o))
-            BD = complexeCellPyr[o][l]*(1+sumVonMiseScale(dephasedVonMisesOFF, l, o)-1*sumVonMiseScale(vonMiseOFF, l, o))
+            BL = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesON, l, o)-1*sum_von_mise_scale(vonMisesON, l, o))
+            BD = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesOFF, l, o)-1*sum_von_mise_scale(vonMiseOFF, l, o))
             BO.append(BL-BD)
         # append value
         B.append(BO)
@@ -234,11 +251,11 @@ def grouping_border_ownership(BO, BOD, vonMises):
     return G
 
 # get state
-img = cv2.imread("/home/cyborg67/Bureau/cur.png")
+img = cv2.imread("/home/main/Bureau/cur.jpg")
 img = cv2.resize(img, (256,256))
 plt.matshow(img)
 plt.show()
-prevImg = cv2.imread("/home/cyborg67/Bureau/ref.png")
+prevImg = cv2.imread("/home/main/Bureau/ref.jpg")
 prevImg = cv2.resize(prevImg, (256,256))
 plt.matshow(prevImg)
 plt.show()
@@ -271,15 +288,27 @@ gaborPyr = simple_cell_processing(imgPyr=refGrayPyr, filterBanks=standardGaborBa
 flickerPyr = flicker_processing(imgPyrCur=curGrayPyr, imgPyrRef=refGrayPyr)
 
 # compute ON/OFF gray cell pyramid
-refGrayONPyr, refGrayOFFPyr = center_and_surround(imgPyr=refGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
-curGrayONPyr, curGrayOFFPyr = center_and_surround(imgPyr=curGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
-# compute ON/OFF flicker cell pyramid
-flickerONPyr, flickerOFFPyr = center_and_surround(imgPyr=flickerPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
-
-# compute ON/OFF color opponent cell pyramid
-colorONPyr, colorOFFPyr = center_and_surround(imgPyr=colorPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+refGrayONPyr, refGrayOFFPyr = center_and_surround_single(imgPyr=refGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+curGrayONPyr, curGrayOFFPyr = center_and_surround_single(imgPyr=curGrayPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
 # compute ON/OFF LGN cell pyramid
-refLGNONPyr, refLGNOFFPyr = center_and_surround(imgPyr=refLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
-curLGNONPyr, curLGNOFFPyr = center_and_surround(imgPyr=curLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+refLGNONPyr, refLGNOFFPyr = center_and_surround_single(imgPyr=refLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+curLGNONPyr, curLGNOFFPyr = center_and_surround_single(imgPyr=curLGNPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+# compute ON/OFF flicker cell pyramid
+flickerONPyr, flickerOFFPyr = center_and_surround_single(imgPyr=flickerPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+# compute ON/OFF color opponent cell pyramid
+colorONPyr, colorOFFPyr = center_and_surround_feature(imgPyr=colorPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
 # compute ON/OFF simple cell pyramid
-simpleONPyr, simpleOFFPyr = center_and_surround(imgPyr=gaborPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+simpleONPyr, simpleOFFPyr = center_and_surround_feature(imgPyr=gaborPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+
+# compute border ownership on gray pyramid
+#Bgray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+
+complexeCellPyr = []
+for o in range(0,len(standardGaborBanks)):
+    complexeCellPyr.append(complex_cell_processing(refGrayPyr[o], standardGaborBanks, dephasedGaborBanks))
+
+
+for o in range(0, len(complexeCellPyr)):
+    for l in range(0, len(complexeCellPyr[0])):
+        plt.matshow(complexeCellPyr[o][l])
+        plt.show()
