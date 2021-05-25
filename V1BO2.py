@@ -215,9 +215,7 @@ def flicker_processing(imgPyrCur, imgPyrRef):
 # border ownership processing
 def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks):
     # compute complexe cell reponse over all orientation and scale
-    complexeCellPyr = []
-    for o in range(0,len(standardGaborBanks)):
-        complexeCellPyr.append(complex_cell_processing(featurePyr, standardGaborBanks, dephasedGaborBanks))
+    complexeCellPyr = complex_cell_processing(featurePyr, standardGaborBanks, dephasedGaborBanks)
     # compute von Mises filter response over all orientation and scale
     vonMisesON = von_mises_processing(featurePyrON, vonMisesBanks)
     dephasedVonMisesON = von_mises_processing(featurePyrON, dephasedVonMisesBanks)
@@ -301,14 +299,4 @@ colorONPyr, colorOFFPyr = center_and_surround_feature(imgPyr=colorPyr, kernelSiz
 simpleONPyr, simpleOFFPyr = center_and_surround_feature(imgPyr=gaborPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
 
 # compute border ownership on gray pyramid
-#Bgray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
-
-complexeCellPyr = []
-for o in range(0,len(standardGaborBanks)):
-    complexeCellPyr.append(complex_cell_processing(refGrayPyr[o], standardGaborBanks, dephasedGaborBanks))
-
-
-for o in range(0, len(complexeCellPyr)):
-    for l in range(0, len(complexeCellPyr[0])):
-        plt.matshow(complexeCellPyr[o][l])
-        plt.show()
+Bgray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
