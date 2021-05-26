@@ -249,30 +249,39 @@ def argmax_border_ownership(BO, BOD):
         featureMap = []
         for o in range(0, len(BDiff)):
             featureMap.append(BDiff[o][l])
+        # compute maximum over border orientation
         BK.append(np.maximum.reduce(featureMap))
     return BK
-    
+
 # Compute grouping using simplified Gestalt principle
 def grouping_border_ownership(BO, BOD, vonMises):
+    # compute Argmax border
+    BK = argmax_border_ownership(BO, BOD)
+    # compute grouping
     G = []
     for l in range(0, len(BO[0])):
         GO = []
         sumGO = np.empty([BO[0][l].shape[0], BO[0][l].shape[0]])
         for o in range(0, len(BO)):
+            maskBK = np.zeros((BO[o][l].shape[0], BO[o][l].shape[0]))
             if (o==0):
-                sumGO = cv2.filter2D(BO[o][l]-BOD[o][l], -1, vonMises[o])
+                # compute mask
+                maskBK[BO[o][l]>BK[l]] = 1
+                sumGO = maskBK*cv2.filter2D(BO[o][l]-2*BOD[o][l], -1, vonMises[o])
             else:
-                sumGO += cv2.filter2D(BO[o][l]-BOD[o][l], -1, vonMises[o])
+                # compute mask
+                maskBK[BO[o][l]>BK[l]] = 1
+                sumGO += maskBK*cv2.filter2D(BO[o][l]-2*BOD[o][l], -1, vonMises[o])
         # append summed orientation border
         G.append(sumGO)
     return G
 
 # get state
-img = cv2.imread("/home/main/Bureau/cur.jpg")
+img = cv2.imread("/home/cyborg67/Bureau/cur.png")
 img = cv2.resize(img, (640,640))
 plt.matshow(img)
 plt.show()
-prevImg = cv2.imread("/home/main/Bureau/ref.jpg")
+prevImg = cv2.imread("/home/cyborg67/Bureau/ref.png")
 prevImg = cv2.resize(prevImg, (640,640))
 plt.matshow(prevImg)
 plt.show()
@@ -337,7 +346,6 @@ dephasedBorderSimple = []
 for o in range(0, len(simplePyr)):
     BorderSimple.append(border_ownership(simplePyr[o], simpleONPyr[o], simpleOFFPyr[o], standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks))
     dephasedBorderSimple.append(border_ownership(simplePyr[o], simpleONPyr[o], simpleOFFPyr[o], standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI))
-
 
 # grouping gray feature
 groupCurGray = grouping_border_ownership(BorderCurGray, dephasedBorderCurGray, vonMisesBanks)
