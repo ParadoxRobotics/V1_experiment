@@ -233,6 +233,25 @@ def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks
         B.append(BO)
     return B
 
+# Argmax Border ownership orientation pyramid
+def argmax_border_ownership(BO, BOD):
+    BK = []
+    BDiff = []
+    # compute difference
+    for o in range(0, len(BO)):
+        featurePyr = []
+        for l in range(0, len(BO[0])):
+            featurePyr.append(BO[o][l]-BOD[o][l])
+        # append pyramid
+        BDiff.append(featurePyr)
+    # compute maximum
+    for l in range(0, len(BDiff[0])):
+        featureMap = []
+        for o in range(0, len(BDiff)):
+            featureMap.append(BDiff[o][l])
+        BK.append(np.maximum.reduce(featureMap))
+    return BK
+    
 # Compute grouping using simplified Gestalt principle
 def grouping_border_ownership(BO, BOD, vonMises):
     G = []
@@ -249,12 +268,12 @@ def grouping_border_ownership(BO, BOD, vonMises):
     return G
 
 # get state
-img = cv2.imread("/home/main/Bureau/lenna.png")
-img = cv2.resize(img, (320,320))
+img = cv2.imread("/home/main/Bureau/cur.jpg")
+img = cv2.resize(img, (640,640))
 plt.matshow(img)
 plt.show()
-prevImg = cv2.imread("/home/main/Bureau/lenna.png")
-prevImg = cv2.resize(prevImg, (320,320))
+prevImg = cv2.imread("/home/main/Bureau/ref.jpg")
+prevImg = cv2.resize(prevImg, (640,640))
 plt.matshow(prevImg)
 plt.show()
 
