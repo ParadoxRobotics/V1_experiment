@@ -104,16 +104,16 @@ def von_mises_processing(imgPyr, vonMisesBank):
 # Sum von mise reponse over a target scale
 def sum_von_mise_scale(vonMiseReponsePyr, scale, orientation):
     # get the shape of the summed map
-    targetSize = vonMiseReponsePyr[scale][orientation].shape[0]
+    targetSize = vonMiseReponsePyr[orientation][scale].shape[0]
     # init sum map
     sum = np.empty([targetSize, targetSize])
     if(scale==0):
-        sum = (1/2)*cv2.resize(vonMiseReponsePyr[scale][orientation], (targetSize, targetSize))
+        sum = (1/2)*cv2.resize(vonMiseReponsePyr[orientation][scale], (targetSize, targetSize))
         return sum
     else:
-        sum = (1/2)*cv2.resize(vonMiseReponsePyr[0][orientation], (targetSize, targetSize))
+        sum = (1/2)*cv2.resize(vonMiseReponsePyr[0][scale], (targetSize, targetSize))
         for s in range(1,scale):
-            sum += (1/2**s+1)*cv2.resize(vonMiseReponsePyr[s][orientation], (targetSize, targetSize))
+            sum += (1/2**s+1)*cv2.resize(vonMiseReponsePyr[orientation][s], (targetSize, targetSize))
     # return the normalized sum
     return sum
 
@@ -223,12 +223,12 @@ def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks
     dephasedVonMisesOFF = von_mises_processing(featurePyrOFF, dephasedVonMisesBanks)
     # compute border cell ON and OFF
     B = []
-    for l in range(0, len(vonMisesON)):
+    for o in range(0, len(vonMisesON)):
         BO = []
-        for o in range(0, len(vonMisesON[0])):
+        for l in range(0, len(vonMisesON[0])):
             BL = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesON, l, o)-1*sum_von_mise_scale(vonMisesON, l, o))
             BD = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesOFF, l, o)-1*sum_von_mise_scale(vonMiseOFF, l, o))
-            BO.append(BL-BD)
+            BO.append(BL+BD)
         # append value
         B.append(BO)
     return B
@@ -236,25 +236,25 @@ def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks
 # Compute grouping using simplified Gestalt principle
 def grouping_border_ownership(BO, BOD, vonMises):
     G = []
-    for l in range(0, len(BO)):
+    for l in range(0, len(BO[0])):
         GO = []
-        sumGO = np.empty([BO[l][0].shape[0], BO[l][0].shape[0]])
-        for o in range(0, len(BO[0])):
-            if (orient==0):
-                sumGO = cv2.filter2D(BO[level][orient]-BOD[l][o], -1, vonMises[o])
+        sumGO = np.empty([BO[0][l].shape[0], BO[0][l].shape[0]])
+        for o in range(0, len(BO)):
+            if (o==0):
+                sumGO = cv2.filter2D(BO[o][l]-BOD[o][l], -1, vonMises[o])
             else:
-                sumGO += cv2.filter2D(BO[level][orient]-BOD[l][o], -1, vonMises[o])
+                sumGO += cv2.filter2D(BO[o][l]-BOD[o][l], -1, vonMises[o])
         # append summed orientation border
         G.append(sumGO)
     return G
 
 # get state
-img = cv2.imread("/home/main/Bureau/cur.jpg")
-img = cv2.resize(img, (256,256))
+img = cv2.imread("/home/main/Bureau/lenna.png")
+img = cv2.resize(img, (320,320))
 plt.matshow(img)
 plt.show()
-prevImg = cv2.imread("/home/main/Bureau/ref.jpg")
-prevImg = cv2.resize(prevImg, (256,256))
+prevImg = cv2.imread("/home/main/Bureau/lenna.png")
+prevImg = cv2.resize(prevImg, (320,320))
 plt.matshow(prevImg)
 plt.show()
 
@@ -281,7 +281,7 @@ colorPyr = color_opponent_processing(imgPyr=mean_std_normalization(imgPyr=refImg
 refLGNPyr = LGN_processing(imgPyr=refGrayPyr, sigmaPos=2, sigmaNeg=20)
 curLGNPyr = LGN_processing(imgPyr=curGrayPyr, sigmaPos=2, sigmaNeg=20)
 # compute gabor pyramid
-gaborPyr = simple_cell_processing(imgPyr=refGrayPyr, filterBanks=standardGaborBanks)
+simplePyr = simple_cell_processing(imgPyr=curLGNPyr, filterBanks=standardGaborBanks)
 # compute flicker pyramid
 flickerPyr = flicker_processing(imgPyrCur=curGrayPyr, imgPyrRef=refGrayPyr)
 
@@ -296,7 +296,62 @@ flickerONPyr, flickerOFFPyr = center_and_surround_single(imgPyr=flickerPyr, kern
 # compute ON/OFF color opponent cell pyramid
 colorONPyr, colorOFFPyr = center_and_surround_feature(imgPyr=colorPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
 # compute ON/OFF simple cell pyramid
-simpleONPyr, simpleOFFPyr = center_and_surround_feature(imgPyr=gaborPyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
+simpleONPyr, simpleOFFPyr = center_and_surround_feature(imgPyr=simplePyr, kernelSize=7, sigmaI=0.9, sigmaO=2.7)
 
-# compute border ownership on gray pyramid
-Bgray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+# compute border cell on gray cell pyramid
+BorderRefGray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+dephasedBorderRefGray = border_ownership(refGrayPyr, refGrayONPyr, refGrayOFFPyr, standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI)
+BorderCurGray = border_ownership(curGrayPyr, curGrayONPyr, curGrayOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+dephasedBorderCurGray = border_ownership(curGrayPyr, curGrayONPyr, curGrayOFFPyr, standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI)
+# compute border cell on flicker cell pyramid
+BorderFlicker = border_ownership(flickerPyr, flickerONPyr, flickerOFFPyr, standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks)
+dephasedBorderFlicker = border_ownership(flickerPyr, flickerONPyr, flickerOFFPyr, standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI)
+# compute border cell on color cell pyramid
+BorderColor = []
+dephasedBorderColor = []
+for c in range(0, len(colorPyr)):
+    BorderColor.append(border_ownership(colorPyr[c], colorONPyr[c], colorOFFPyr[c], standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks))
+    dephasedBorderColor.append(border_ownership(colorPyr[c], colorONPyr[c], colorOFFPyr[c], standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI))
+# compute border cell on gabor simple cell pyramid
+BorderSimple = []
+dephasedBorderSimple = []
+for o in range(0, len(simplePyr)):
+    BorderSimple.append(border_ownership(simplePyr[o], simpleONPyr[o], simpleOFFPyr[o], standardGaborBanks, dephasedGaborBanks, vonMisesBanks, dephasedVonMisesBanks))
+    dephasedBorderSimple.append(border_ownership(simplePyr[o], simpleONPyr[o], simpleOFFPyr[o], standardGaborBanksPI, dephasedGaborBanksPI, dephasedVonMisesBanks, dephasedVonMisesBanksPI))
+
+
+# grouping gray feature
+groupCurGray = grouping_border_ownership(BorderCurGray, dephasedBorderCurGray, vonMisesBanks)
+groupRefGray = grouping_border_ownership(BorderRefGray, dephasedBorderRefGray, vonMisesBanks)
+# grouping flicker feature
+groupFlicker = grouping_border_ownership(BorderFlicker, dephasedBorderFlicker, vonMisesBanks)
+# grouping color features
+groupColor = []
+for o in range(0, len(BorderColor)):
+    groupColor.append(grouping_border_ownership(BorderColor[o], dephasedBorderColor[o], vonMisesBanks))
+# grouping simple cell features
+groupSimple = []
+for o in range(0, len(BorderSimple)):
+    groupSimple.append(grouping_border_ownership(BorderSimple[o], dephasedBorderSimple[o], vonMisesBanks))
+
+print("Gray grouping")
+for l in range(0, len(groupCurGray)):
+    plt.matshow(groupCurGray[l])
+    plt.show()
+
+print("Flicker grouping")
+for l in range(0, len(groupFlicker)):
+    plt.matshow(groupFlicker[l])
+    plt.show()
+
+print("Color grouping")
+for c in range(0, len(groupColor)):
+    for l in range(0, len(groupColor[0])):
+        plt.matshow(groupColor[c][l])
+        plt.show()
+
+print("Edge grouping")
+for c in range(0, len(groupSimple)):
+    for l in range(0, len(groupSimple[0])):
+        plt.matshow(groupSimple[c][l])
+        plt.show()
