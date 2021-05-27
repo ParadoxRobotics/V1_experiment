@@ -52,7 +52,9 @@ def center_and_surround_single(imgPyr, kernelSize, sigmaI, sigmaO):
         innerGaussian = cv2.GaussianBlur(imgPyr[l], (kernelSize, kernelSize), sigmaX=sigmaI, sigmaY=sigmaI)
         outerGaussian = cv2.GaussianBlur(imgPyr[l], (kernelSize, kernelSize), sigmaX=sigmaO, sigmaY=sigmaO)
         CSON = innerGaussian - outerGaussian
+        CSON[CSON < 0] = 0
         CSOFF = -innerGaussian + outerGaussian
+        CSOFF[CSOFF < 0] = 0
         CCPyrON.append(CSON)
         CCPyrOFF.append(CSOFF)
     return CCPyrON, CCPyrOFF
@@ -67,7 +69,9 @@ def center_and_surround_feature(imgPyr, kernelSize, sigmaI, sigmaO):
             innerGaussian = cv2.GaussianBlur(imgPyr[o][l], (kernelSize, kernelSize), sigmaX=sigmaI, sigmaY=sigmaI)
             outerGaussian = cv2.GaussianBlur(imgPyr[o][l], (kernelSize, kernelSize), sigmaX=sigmaO, sigmaY=sigmaO)
             CSON = innerGaussian - outerGaussian
+            CSON[CSON < 0] = 0
             CSOFF = -innerGaussian + outerGaussian
+            CSOFF[CSOFF < 0] = 0
             CCPyrFeatureON.append(CSON)
             CCPyrFeatureOFF.append(CSOFF)
         CCPyrON.append(CCPyrFeatureON)
@@ -228,7 +232,9 @@ def border_ownership(featurePyr, featurePyrON, featurePyrOFF, standardGaborBanks
         for l in range(0, len(vonMisesON[0])):
             BL = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesON, l, o)-1*sum_von_mise_scale(vonMisesON, l, o))
             BD = complexeCellPyr[o][l]*(1+sum_von_mise_scale(dephasedVonMisesOFF, l, o)-1*sum_von_mise_scale(vonMiseOFF, l, o))
-            BO.append(BL+BD)
+            BAdd = BL+BD
+            BAdd[BAdd < 0] = 0
+            BO.append(BAdd)
         # append value
         B.append(BO)
     return B
