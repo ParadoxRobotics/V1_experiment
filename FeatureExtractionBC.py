@@ -65,9 +65,9 @@ FilterEdgeSpot2 = np.array([[1,2,0,-2,-1],
                              [1,2,0,-2,-1]], dtype=np.float32)
 
 # read images
-currentImg = cv2.imread('Lenna.png')
+currentImg = cv2.imread('2.png')
 currentImg = cv2.resize(currentImg, (width,height))
-lastImg = cv2.imread('Lenna.png')
+lastImg = cv2.imread('1.png')
 lastImg = cv2.resize(lastImg, (width,height))
 # convert image to YCrCb and gray
 currentGray = cv2.cvtColor(currentImg, cv2.COLOR_BGRA2GRAY)
@@ -100,7 +100,8 @@ SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1))/128 + 
 # Compute Spot+Edge on Y channel
 SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))/48
 # Compute Dense Optical flow
-
+FlowY = cv2.calcOpticalFlowFarneback(prev=lastGray, next=currentGray,pyr_scale=0.5,levels=1,winsize=15,iterations=1,poly_n=5,poly_sigma=1.2,flags=0,flow=None)
+print("plop")
 # Plot feature
 plt.imshow(LevelY)
 plt.show()
@@ -118,8 +119,10 @@ plt.imshow(SpotLevelY)
 plt.show()
 plt.imshow(SpotEdgeY)
 plt.show()
-
-
+plt.imshow(FlowY[:,:,0])
+plt.show()
+plt.imshow(FlowY[:,:,1])
+plt.show()
 # 8x8x8=512 Spatial GIST feature (average or median)
 
-# R-KNN classifier
+# R-KNN classifier ?
