@@ -1,13 +1,12 @@
 import math
 import numpy as np
-from skimage.transform import radon
 import cv2
 import copy
 import matplotlib.pyplot as plt
 
 # Size parameters
-height = 64
-width = 64
+height = 128
+width = 128
 
 # Filter Bank
 FilterLevel = np.array([[1,4,6,4,1],
@@ -65,9 +64,9 @@ FilterEdgeSpot2 = np.array([[1,2,0,-2,-1],
                              [1,2,0,-2,-1]], dtype=np.float32)
 
 # read images
-currentImg = cv2.imread('2.png')
+currentImg = cv2.imread('cur.png')
 currentImg = cv2.resize(currentImg, (width,height))
-lastImg = cv2.imread('1.png')
+lastImg = cv2.imread('ref.png')
 lastImg = cv2.resize(lastImg, (width,height))
 # convert image to YCrCb and gray
 currentGray = cv2.cvtColor(currentImg, cv2.COLOR_BGRA2GRAY)
@@ -100,9 +99,9 @@ SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1))/128 + 
 # Compute Spot+Edge on Y channel
 SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))/48
 # Compute Dense Optical flow
-FlowY = cv2.calcOpticalFlowFarneback(prev=lastGray, next=currentGray,pyr_scale=0.5,levels=1,winsize=15,iterations=1,poly_n=5,poly_sigma=1.2,flags=0,flow=None)
-print("plop")
+FlowY = cv2.calcOpticalFlowFarneback(prev=lastGray, next=currentGray, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1, flags=0, flow=None)
 # Plot feature
+"""
 plt.imshow(LevelY)
 plt.show()
 plt.imshow(levelCr)
@@ -123,6 +122,32 @@ plt.imshow(FlowY[:,:,0])
 plt.show()
 plt.imshow(FlowY[:,:,1])
 plt.show()
-# 8x8x8=512 Spatial GIST feature (average or median)
+"""
+# concat representation
+structHt = cv2.merge([LevelY, levelCr, levelCb, EgdeY, SpotY, EdgeLevelY, SpotLevelY, SpotEdgeY])
+motionHt = FlowY
+
+# 8x8x8=512 Spatial GIST feature (average and median)
+FeatureVector = []
+patchSize = 8
+# Spatial Average GIST
+for c in range(0, structHt.shape[2]):
+    for i in range(0, patchSize):
+        for j in range(0, patchSize):
+            patch = structHt[int(i*structHt[:,:,c].shape[0]/patchSize):int(i*structHt[:,:,c].shape[0]/patchSize + structHt[:,:,c].shape[0]/patchSize), \
+            int(j*structHt[:,:,c].shape[1]/patchSize):int(j*structHt[:,:,c].shape[1]/patchSize + structHt[:,:,c].shape[1]/patchSize), c]
+            localMean = np.mean(patch)
+            FeatureVector.append(localMean)
+
+# Spatial Median GIST
+for c in range(0, motionHt.shape[2]):
+    for i in range(0, patchSize):
+        for j in range(0, patchSize):
+            patch = motionHt[int(i*motionHt[:,:,c].shape[0]/patchSize):int(i*motionHt[:,:,c].shape[0]/patchSize + motionHt[:,:,c].shape[0]/patchSize), \
+            int(j*motionHt[:,:,c].shape[1]/patchSize):int(j*motionHt[:,:,c].shape[1]/patchSize + motionHt[:,:,c].shape[1]/patchSize), c]
+            localMedian = np.median(patch)
+            FeatureVector.append(localMedian)
+
+# Rescale and Normalize Feature vector 
 
 # R-KNN classifier ?
