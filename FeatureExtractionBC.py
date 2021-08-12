@@ -125,7 +125,7 @@ plt.show()
 """
 # concat representation
 structHt = cv2.merge([LevelY, levelCr, levelCb, EgdeY, SpotY, EdgeLevelY, SpotLevelY, SpotEdgeY])
-motionHt = FlowY
+motionHt = np.abs(FlowY)
 
 # 8x8x8=512 Spatial GIST feature (average and median)
 FeatureVector = []
@@ -148,6 +148,7 @@ for c in range(0, motionHt.shape[2]):
             localMedian = np.median(patch)
             FeatureVector.append(localMedian)
 
-# Rescale and Normalize Feature vector 
+# Rescale and Normalize Feature vector
+print(FeatureVector)
 
 # R-KNN classifier ?
