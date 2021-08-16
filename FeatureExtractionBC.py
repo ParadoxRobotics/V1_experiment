@@ -64,9 +64,9 @@ FilterEdgeSpot2 = np.array([[1,2,0,-2,-1],
                              [1,2,0,-2,-1]], dtype=np.float32)
 
 # read images
-currentImg = cv2.imread('cur.png')
+currentImg = cv2.imread('Lenna.png')
 currentImg = cv2.resize(currentImg, (width,height))
-lastImg = cv2.imread('ref.png')
+lastImg = cv2.imread('Lenna.png')
 lastImg = cv2.resize(lastImg, (width,height))
 # convert image to YCrCb and gray
 currentGray = cv2.cvtColor(currentImg, cv2.COLOR_BGRA2GRAY)
@@ -85,23 +85,34 @@ plt.imshow(currentCb)
 plt.show()
 
 # compute Level on Y, Cb and Cr channel
-LevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterLevel))/256
-levelCr = np.abs(cv2.filter2D(currentCr, cv2.CV_32F, FilterLevel))/256
-levelCb = np.abs(cv2.filter2D(currentCb, cv2.CV_32F, FilterLevel))/256
+LevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterLevel))
+#/256
+levelCr = np.abs(cv2.filter2D(currentCr, cv2.CV_32F, FilterLevel))
+#/256
+levelCb = np.abs(cv2.filter2D(currentCb, cv2.CV_32F, FilterLevel))
+#/256
 # compute Edge on Y channel
-EgdeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdge))/36
+EgdeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdge))
+#/36
 # compute Spot on Y channel
-SpotY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpot))/16
+SpotY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpot))
+#/16
 # Compute Edge+Level on Y channel
-EdgeLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel1))/192 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel2))/192
+EdgeLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel1)) + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel2))
+#/192
+#/192
 # Compute Spot+Level on Y channel
-SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1))/128 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel2))/128
+SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1)) + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel2))
+#/128
+#/128
 # Compute Spot+Edge on Y channel
-SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))/48
+SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))
+#/48
+#/48
 # Compute Dense Optical flow
 FlowY = cv2.calcOpticalFlowFarneback(prev=lastGray, next=currentGray, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1, flags=0, flow=None)
 # Plot feature
-"""
+
 plt.imshow(LevelY)
 plt.show()
 plt.imshow(levelCr)
@@ -152,3 +163,4 @@ for c in range(0, motionHt.shape[2]):
 print(FeatureVector)
 
 # R-KNN classifier ?
+"""
