@@ -5,8 +5,8 @@ import copy
 import matplotlib.pyplot as plt
 
 # Size parameters
-height = 128
-width = 128
+height = 512
+width = 512
 
 # Filter Bank
 FilterLevel = np.array([[1,4,6,4,1],
@@ -64,9 +64,9 @@ FilterEdgeSpot2 = np.array([[1,2,0,-2,-1],
                              [1,2,0,-2,-1]], dtype=np.float32)
 
 # read images
-currentImg = cv2.imread('Lenna.png')
+currentImg = cv2.imread('output.png')
 currentImg = cv2.resize(currentImg, (width,height))
-lastImg = cv2.imread('Lenna.png')
+lastImg = cv2.imread('output.png')
 lastImg = cv2.resize(lastImg, (width,height))
 # convert image to YCrCb and gray
 currentGray = cv2.cvtColor(currentImg, cv2.COLOR_BGRA2GRAY)
@@ -76,42 +76,33 @@ lastImg = cv2.cvtColor(lastImg, cv2.COLOR_BGR2YCrCb)
 # Split channel
 currentY, currentCr, currentCb = cv2.split(currentImg)
 lastY, lastCr, lastCb = cv2.split(lastImg)
-# show channel
-plt.imshow(currentY)
-plt.show()
-plt.imshow(currentCr)
-plt.show()
-plt.imshow(currentCb)
-plt.show()
 
 # compute Level on Y, Cb and Cr channel
-LevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterLevel))
+LevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterLevel))/256
 #/256
-levelCr = np.abs(cv2.filter2D(currentCr, cv2.CV_32F, FilterLevel))
+levelCr = np.abs(cv2.filter2D(currentCr, cv2.CV_32F, FilterLevel))/256
 #/256
-levelCb = np.abs(cv2.filter2D(currentCb, cv2.CV_32F, FilterLevel))
+levelCb = np.abs(cv2.filter2D(currentCb, cv2.CV_32F, FilterLevel))/256
 #/256
 # compute Edge on Y channel
-EgdeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdge))
+EgdeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdge))/36
 #/36
 # compute Spot on Y channel
-SpotY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpot))
+SpotY = np.abs(cv2.filter2D(EgdeY, cv2.CV_32F, FilterSpot))/16
 #/16
 # Compute Edge+Level on Y channel
-EdgeLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel1)) + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel2))
+EdgeLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel1))/192 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeLevel2))/192
 #/192
 #/192
 # Compute Spot+Level on Y channel
-SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1)) + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel2))
+SpotLevelY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel1))/128 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterSpotLevel2))/128
 #/128
 #/128
 # Compute Spot+Edge on Y channel
-SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))
+SpotEdgeY = np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot1))/48 + np.abs(cv2.filter2D(currentY, cv2.CV_32F, FilterEdgeSpot2))/48
 #/48
 #/48
-# Compute Dense Optical flow
-FlowY = cv2.calcOpticalFlowFarneback(prev=lastGray, next=currentGray, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1, flags=0, flow=None)
-# Plot feature
+
 
 plt.imshow(LevelY)
 plt.show()
@@ -129,38 +120,3 @@ plt.imshow(SpotLevelY)
 plt.show()
 plt.imshow(SpotEdgeY)
 plt.show()
-plt.imshow(FlowY[:,:,0])
-plt.show()
-plt.imshow(FlowY[:,:,1])
-plt.show()
-"""
-# concat representation
-structHt = cv2.merge([LevelY, levelCr, levelCb, EgdeY, SpotY, EdgeLevelY, SpotLevelY, SpotEdgeY])
-motionHt = np.abs(FlowY)
-
-# 8x8x8=512 Spatial GIST feature (average and median)
-FeatureVector = []
-patchSize = 8
-# Spatial Average GIST
-for c in range(0, structHt.shape[2]):
-    for i in range(0, patchSize):
-        for j in range(0, patchSize):
-            patch = structHt[int(i*structHt[:,:,c].shape[0]/patchSize):int(i*structHt[:,:,c].shape[0]/patchSize + structHt[:,:,c].shape[0]/patchSize), \
-            int(j*structHt[:,:,c].shape[1]/patchSize):int(j*structHt[:,:,c].shape[1]/patchSize + structHt[:,:,c].shape[1]/patchSize), c]
-            localMean = np.mean(patch)
-            FeatureVector.append(localMean)
-
-# Spatial Median GIST
-for c in range(0, motionHt.shape[2]):
-    for i in range(0, patchSize):
-        for j in range(0, patchSize):
-            patch = motionHt[int(i*motionHt[:,:,c].shape[0]/patchSize):int(i*motionHt[:,:,c].shape[0]/patchSize + motionHt[:,:,c].shape[0]/patchSize), \
-            int(j*motionHt[:,:,c].shape[1]/patchSize):int(j*motionHt[:,:,c].shape[1]/patchSize + motionHt[:,:,c].shape[1]/patchSize), c]
-            localMedian = np.median(patch)
-            FeatureVector.append(localMedian)
-
-# Rescale and Normalize Feature vector
-print(FeatureVector)
-
-# R-KNN classifier ?
-"""
