@@ -9,16 +9,12 @@ def CenterAndSurroundFilterBank(Kernel_Size, Sigma_I, Sigma_O):
     CSOFF = None
     # compute filter
     x, y = np.mgrid[:Kernel_Size, :Kernel_Size] - (Kernel_Size // 2)
-    CSON = (1 / (2 * np.pi * Sigma_I**2)) * np.exp(
-        -((x**2 + y**2) / (2 * Sigma_I**2))
-    ) - (1 / (2 * np.pi * Sigma_O**2)) * np.exp(
-        -((x**2 + y**2) / (2 * Sigma_O**2))
-    )
-    CSOFF = -(1 / (2 * np.pi * Sigma_I**2)) * np.exp(
-        -((x**2 + y**2) / (2 * Sigma_I**2))
-    ) + (1 / (2 * np.pi * Sigma_O**2)) * np.exp(
-        -((x**2 + y**2) / (2 * Sigma_O**2))
-    )
+    CSON = (1 / (2 * np.pi * Sigma_I**2)) * np.exp(-((x**2 + y**2) / (2 * Sigma_I**2))) - (
+        1 / (2 * np.pi * Sigma_O**2)
+    ) * np.exp(-((x**2 + y**2) / (2 * Sigma_O**2)))
+    CSOFF = -(1 / (2 * np.pi * Sigma_I**2)) * np.exp(-((x**2 + y**2) / (2 * Sigma_I**2))) + (
+        1 / (2 * np.pi * Sigma_O**2)
+    ) * np.exp(-((x**2 + y**2) / (2 * Sigma_O**2)))
     return CSON, CSOFF
 
 
@@ -50,12 +46,8 @@ def VonMisesFilterBank(Kernel_Size, RO, P, Orientation, Center):
             angle = np.arctan2(y, x)
             angle_pi = np.arctan2(y_pi, x_pi)
         # compute filter
-        VMF = np.exp(P * RO * np.cos(angle - theta)) / np.i0(
-            np.sqrt(x**2 + y**2) - RO
-        )
-        VMF_PI = np.exp(P * RO * np.cos(angle_pi - theta_pi)) / np.i0(
-            np.sqrt(x_pi**2 + y_pi**2) - RO
-        )
+        VMF = np.exp(P * RO * np.cos(angle - theta)) / np.i0(np.sqrt(x**2 + y**2) - RO)
+        VMF_PI = np.exp(P * RO * np.cos(angle_pi - theta_pi)) / np.i0(np.sqrt(x_pi**2 + y_pi**2) - RO)
         # normalize
         VMF = VMF / np.max(np.max(VMF))
         VMF_PI = VMF_PI / np.max(np.max(VMF_PI))
@@ -65,19 +57,8 @@ def VonMisesFilterBank(Kernel_Size, RO, P, Orientation, Center):
     return VMB, VMB_PI
 
 
-VMB, VMB_PI = VonMisesFilterBank(
-    Kernel_Size=32, RO=10, P=0.2, Orientation=[0, 45, 90, 135], Center=True
-)
-for i in range(len(VMB)):
-    plt.matshow(VMB[i])
-    plt.matshow(VMB_PI[i])
-    plt.show()
-
-
 # Border ownership computation at a single scale
-def BorderOwnership(
-    Feature_Map, ON_Filter_Bank, OFF_Filter_Bank, Von_Mises_Bank, Von_Mises_Bank_Pi, w
-):
+def BorderOwnership(Feature_Map, ON_Filter_Bank, OFF_Filter_Bank, Von_Mises_Bank, Von_Mises_Bank_Pi, w):
     # Init mask
     B1 = []
     B2 = []
@@ -95,23 +76,17 @@ def BorderOwnership(
         # OFF + VM theta
         OFF_theta = cv2.filter2D(off_feature_map, -1, Von_Mises_Bank[o])
         # compute first mask element
-        M1 = np.maximum(0, (ON_theta - w * OFF_theta_pi)) + np.maximum(
-            0, (OFF_theta - w * ON_theta_pi)
-        )
+        M1 = np.maximum(0, (ON_theta - w * OFF_theta_pi)) + np.maximum(0, (OFF_theta - w * ON_theta_pi))
         # Compute second mask elment
-        M2 = np.maximum(0, (ON_theta_pi - w * OFF_theta)) + np.maximum(
-            0, (OFF_theta_pi - w * ON_theta)
-        )
+        M2 = np.maximum(0, (ON_theta_pi - w * OFF_theta)) + np.maximum(0, (OFF_theta_pi - w * ON_theta))
         # Append border ownership
         B1.append(Feature_Map * M1)
         B2.append(Feature_Map * M2)
-    return B1, B2
+    return on_feature_map, off_feature_map, B1, B2
 
 
 # Grouping procedure at a single scale
-def Grouping(
-    BorderOwnership_Map_1, BorderOwnership_Map_2, Von_Mises_Bank, Von_Mises_Bank_Pi
-):
+def Grouping(BorderOwnership_Map_1, BorderOwnership_Map_2, Von_Mises_Bank, Von_Mises_Bank_Pi):
     # Excitatory and Inhibitory grouping map init
     G1_EXC = cv2.filter2D(BorderOwnership_Map_1[0], -1, Von_Mises_Bank[0])
     G2_EXC = cv2.filter2D(BorderOwnership_Map_2[0], -1, Von_Mises_Bank_Pi[0])
@@ -120,12 +95,8 @@ def Grouping(
     # Sum over orientation
     for o in range(1, len(Von_Mises_Bank)):
         G1_EXC = G1_EXC + cv2.filter2D(BorderOwnership_Map_1[o], -1, Von_Mises_Bank[o])
-        G2_EXC = G2_EXC + cv2.filter2D(
-            BorderOwnership_Map_2[o], -1, Von_Mises_Bank_Pi[o]
-        )
-        G1_INH = G1_INH + cv2.filter2D(
-            BorderOwnership_Map_1[o], -1, Von_Mises_Bank_Pi[o]
-        )
+        G2_EXC = G2_EXC + cv2.filter2D(BorderOwnership_Map_2[o], -1, Von_Mises_Bank_Pi[o])
+        G1_INH = G1_INH + cv2.filter2D(BorderOwnership_Map_1[o], -1, Von_Mises_Bank_Pi[o])
         G2_INH = G2_INH + cv2.filter2D(BorderOwnership_Map_2[o], -1, Von_Mises_Bank[o])
     # localize activation in inhibitory map
     G1_INH = np.absolute(G1_INH - np.max(G1_INH))
@@ -134,3 +105,36 @@ def Grouping(
     group_map = (G1_EXC - G1_INH) + (G2_EXC - G2_INH)
     # return grouping map at single scale
     return group_map
+
+
+img = cv2.imread("/home/visualbehavior/Desktop/kid_room.jpg", cv2.IMREAD_GRAYSCALE) / 255
+ON_filter, OFF_filter = CenterAndSurroundFilterBank(Kernel_Size=32, Sigma_I=0.90, Sigma_O=2.70)
+VM, VM_pi = VonMisesFilterBank(Kernel_Size=32, RO=10, P=0.2, Orientation=[0, 45, 90, 135], Center=True)
+
+plt.matshow(img)
+plt.show()
+
+on_map, off_map, border_one, border_two = BorderOwnership(
+    Feature_Map=img,
+    ON_Filter_Bank=ON_filter,
+    OFF_Filter_Bank=OFF_filter,
+    Von_Mises_Bank=VM,
+    Von_Mises_Bank_Pi=VM_pi,
+    w=3,
+)
+
+plt.matshow(on_map)
+plt.matshow(off_map)
+plt.show()
+
+for i in range(len(border_one)):
+    plt.matshow(border_one[i])
+    plt.matshow(border_two[i])
+    plt.show()
+
+grouping_map = Grouping(
+    BorderOwnership_Map_1=border_one, BorderOwnership_Map_2=border_two, Von_Mises_Bank=VM, Von_Mises_Bank_Pi=VM_pi
+)
+
+plt.matshow(grouping_map)
+plt.show()
